@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 
 
 def main(vc_data, c_cell, ljp, filename):
-    # Check data structure
+    # Check data file
     column_names = vc_data.columns.to_list()
     try:
         column_names.index('tms')
@@ -16,10 +16,12 @@ def main(vc_data, c_cell, ljp, filename):
         print("voltage-clamp columns must be named 'tms', 'mV', and 'pApF'")
         sys.exit()
 
+    # Adjusts the voltage for the liquid junction potential and sets parameter space
     mV = vc_data.mV + ljp
     g_leak = (np.linspace(start=0.1, stop=5.0, num=50))**-1  # in nS
     g_leak_final = float()
 
+    # Calculate RSME for the range of leak conductance values
     rmse_leak = list()
     for i in range(len(g_leak)):
         i_seal_leak = (g_leak[i] * mV)/c_cell
@@ -28,6 +30,7 @@ def main(vc_data, c_cell, ljp, filename):
     g_leak_crude = g_leak[rmse_leak.index(min(rmse_leak))]
     print('g_leak_crude: ' + str(g_leak_crude) + ' nS')
 
+    # Searches parameter space locally to improve prescision
     if (rmse_leak.index(min(rmse_leak)) > 0):
         ndx = rmse_leak.index(min(rmse_leak))
         g_leak_fine = np.linspace(start=g_leak[(ndx-1)], stop=g_leak[(ndx+1)], num=50)
@@ -53,7 +56,7 @@ def main(vc_data, c_cell, ljp, filename):
     plt.plot(vc_data.tms, leak_subtracted)
     plt.show()
 
-    # Write leak_subtracted
+    # Write leak_subtracted current to file
     file_suffix = '_leak_sub.txt'
     filename = filename.split('.txt')[0]+file_suffix
     vc_data['i_sub_leak'] = leak_subtracted
@@ -61,6 +64,7 @@ def main(vc_data, c_cell, ljp, filename):
     vc_data.to_csv(filename, sep=' ', index=False)
 
 
+# Function to calculate RMSE
 def calc_rmse(i_pApF, i_leak_pApF):
     n = float(len(i_pApF))
     rmse = (sum((i_pApF - i_leak_pApF)**2) / n)**0.5
